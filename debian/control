@@ -1,0 +1,18 @@
+Source: breakout
+Section: games
+Priority: optional
+Maintainer: Deepin en Español <developers@deepinenespanol.org>
+Build-Depends: debhelper-compat (= 13),
+               cmake,
+               qt6-base-dev,
+               libdtk6widget-dev
+Standards-Version: 4.6.2
+Homepage: https://deepinenespanol.org
+
+Package: breakout
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Classic Breakout game for Deepin desktop
+ A classic brick breaker implementation built with Qt6 and DTK6,
+ featuring mouse and keyboard control and full
+ internationalization support.

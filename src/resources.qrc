@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/breakout.svg</file>
+        <file>icons/Logo-Racoon.png</file>
+    </qresource>
+</RCC>
