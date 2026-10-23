@@ -1,0 +1,27 @@
+version: "1"
+
+package:
+  id: org.deepinenespanol.breakout
+  name: "Breakout"
+  version: 0.2.0.0
+  kind: app
+  description: |
+    Classic Breakout game for Deepin desktop
+
+command:
+  - /opt/apps/org.deepinenespanol.breakout/files/bin/breakout
+
+base: org.deepin.base/25.2.2
+runtime: org.deepin.runtime.dtk/25.2.2
+
+# Se empaqueta el .deb ya compilado (el CI lo deja en debs/).
+# Se lee de /project/debs/ porque ll-builder vacia linglong/sources.
+build: |
+  dpkg-deb -X /project/debs/breakout_*.deb $PREFIX/
+  mv $PREFIX/usr/bin $PREFIX/bin
+  mv $PREFIX/usr/share $PREFIX/share
+  rm -rf $PREFIX/usr
+  sed -i 's#^Exec=.*#Exec=/opt/apps/org.deepinenespanol.breakout/files/bin/breakout#' \
+      $PREFIX/share/applications/org.deepinenespanol.breakout.desktop
+
+sources: []
