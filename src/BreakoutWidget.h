@@ -24,17 +24,24 @@ public:
     explicit BreakoutWidget(QWidget *parent = nullptr, QLabel *scoreLabel = nullptr);
 
     void resetGame();
+    void togglePause();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void focusOutEvent(QFocusEvent *event) override;
 
 private:
     void gameLoop();
     void resetBall();
     void initBricks();
+    void launchBall();
+    void nextLevel();
+    void updateLabel();
+    void saveRecord();
 
     QLabel *m_scoreLabel;
 
@@ -50,6 +57,7 @@ private:
 
     static const int BALL_SIZE = 10;
     static const double BALL_SPEED_INITIAL;
+    static const double BALL_SPEED_MAX;
     double m_ballSpeed;
     QPointF m_ballPos;
     QPointF m_ballDir;
@@ -65,6 +73,8 @@ private:
 
     int m_score;
     int m_lives;
+    int m_level;
+    int m_record;
     bool m_gameOver;
     bool m_paused;
     bool m_ballLaunched;

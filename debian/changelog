@@ -1,3 +1,20 @@
+breakout (0.3-1) unstable; urgency=medium
+
+  * Niveles: al romper todos los ladrillos empieza un muro nuevo, la
+    pelota acelera y se gana una vida (antes la partida no terminaba
+    nunca).
+  * Record de puntos guardado entre partidas.
+  * La ventana tenia el tamano del juego sin contar la barra de titulo:
+    la pala quedaba fuera de la vista. Ahora se ajusta al tamano real.
+  * El teclado no respondia hasta hacer clic en el tablero; ahora tiene
+    el foco desde el inicio.
+  * Lanzamiento con angulo realmente aleatorio (std::rand sin semilla
+    repetia siempre el mismo); tambien se lanza con clic.
+  * Pausa automatica al perder el foco y opcion Pausa en el menu.
+  * Ctrl+N y Ctrl+Q funcionan sin abrir el menu.
+
+ -- Deepin en Español <developers@deepinenespanol.org>  Wed, 04 Nov 2026 18:00:00 +0000
+
 breakout (0.2-1) unstable; urgency=medium
 
   * New version 0.2.

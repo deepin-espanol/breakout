@@ -3,9 +3,12 @@
 #include <QPainter>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QRandomGenerator>
+#include <QSettings>
 #include <cmath>
 
 const double BreakoutWidget::BALL_SPEED_INITIAL = 5.0;
+const double BreakoutWidget::BALL_SPEED_MAX = 9.0;
 
 BreakoutWidget::BreakoutWidget(QWidget *parent, QLabel *scoreLabel)
     : QWidget(parent)
@@ -15,6 +18,8 @@ BreakoutWidget::BreakoutWidget(QWidget *parent, QLabel *scoreLabel)
     , m_ballSpeed(BALL_SPEED_INITIAL)
     , m_score(0)
     , m_lives(3)
+    , m_level(1)
+    , m_record(QSettings().value("record", 0).toInt())
     , m_gameOver(false)
     , m_paused(false)
     , m_ballLaunched(false)
@@ -33,15 +38,59 @@ void BreakoutWidget::resetGame()
 {
     m_score = 0;
     m_lives = 3;
+    m_level = 1;
     m_gameOver = false;
     m_paused = false;
     m_paddleX = WIDTH / 2 - PADDLE_WIDTH / 2;
     m_paddleDir = 0;
     m_ballSpeed = BALL_SPEED_INITIAL;
-    m_scoreLabel->setText(tr("Puntos: %1  |  Vidas: %2").arg(m_score).arg(m_lives));
+    updateLabel();
     initBricks();
     resetBall();
     m_gameTimer->start(16);
+}
+
+void BreakoutWidget::updateLabel()
+{
+    if (m_score > m_record) {
+        m_record = m_score;
+        saveRecord();
+    }
+    m_scoreLabel->setText(tr("Puntos: %1  |  Vidas: %2  |  Nivel: %3  |  Récord: %4")
+                              .arg(m_score).arg(m_lives).arg(m_level).arg(m_record));
+}
+
+void BreakoutWidget::saveRecord()
+{
+    QSettings().setValue("record", m_record);
+}
+
+void BreakoutWidget::togglePause()
+{
+    if (m_gameOver) return;
+    m_paused = !m_paused;
+    update();
+}
+
+void BreakoutWidget::launchBall()
+{
+    if (m_ballLaunched || m_gameOver || m_paused) return;
+    m_ballLaunched = true;
+    // Angulo aleatorio entre -45 y 45 grados respecto a la vertical
+    double angle = (QRandomGenerator::global()->generateDouble() * 2.0 - 1.0) * M_PI / 4.0;
+    m_ballDir = QPointF(m_ballSpeed * std::sin(angle), -m_ballSpeed * std::cos(angle));
+}
+
+// Muro completado: nuevo muro, pelota algo mas rapida y una vida extra
+void BreakoutWidget::nextLevel()
+{
+    m_level++;
+    m_score += 100 * (m_level - 1);
+    m_lives = qMin(m_lives + 1, 5);
+    m_ballSpeed = qMin(BALL_SPEED_INITIAL + 0.6 * (m_level - 1), BALL_SPEED_MAX);
+    initBricks();
+    resetBall();
+    updateLabel();
 }
 
 void BreakoutWidget::resetBall()
@@ -118,9 +167,10 @@ void BreakoutWidget::gameLoop()
     // Ball fell below paddle
     if (m_ballPos.y() > HEIGHT) {
         m_lives--;
-        m_scoreLabel->setText(tr("Puntos: %1  |  Vidas: %2").arg(m_score).arg(m_lives));
+        updateLabel();
         if (m_lives <= 0) {
             m_gameOver = true;
+            saveRecord();
             update();
             return;
         }
@@ -154,7 +204,7 @@ void BreakoutWidget::gameLoop()
         if (ballRect.intersects(brickRect)) {
             brick.alive = false;
             m_score += brick.points;
-            m_scoreLabel->setText(tr("Puntos: %1  |  Vidas: %2").arg(m_score).arg(m_lives));
+            updateLabel();
 
             // Determine collision side
             double overlapLeft = (ballRect.right()) - brickRect.left();
@@ -176,6 +226,13 @@ void BreakoutWidget::gameLoop()
             break;
         }
     }
+
+    bool quedan = false;
+    for (const auto &brick : m_bricks) {
+        if (brick.alive) { quedan = true; break; }
+    }
+    if (!quedan)
+        nextLevel();
 
     update();
 }
@@ -231,7 +288,13 @@ void BreakoutWidget::paintEvent(QPaintEvent *)
         font.setPixelSize(30);
         font.setBold(true);
         painter.setFont(font);
-        painter.drawText(rect(), Qt::AlignCenter, tr("GAME OVER\nPresiona Enter para reiniciar"));
+        painter.drawText(rect().adjusted(0, -40, 0, -40), Qt::AlignCenter, tr("GAME OVER"));
+        font.setPixelSize(16);
+        font.setBold(false);
+        painter.setFont(font);
+        painter.drawText(rect().adjusted(0, 20, 0, 20), Qt::AlignCenter,
+                         tr("Puntos: %1  |  Nivel: %2  |  Récord: %3\nPresiona Enter para reiniciar")
+                             .arg(m_score).arg(m_level).arg(m_record));
     }
 
     // Pause overlay
@@ -243,16 +306,20 @@ void BreakoutWidget::paintEvent(QPaintEvent *)
         font.setBold(true);
         painter.setFont(font);
         painter.drawText(rect(), Qt::AlignCenter, tr("PAUSA"));
+        font.setPixelSize(14);
+        font.setBold(false);
+        painter.setFont(font);
+        painter.drawText(rect().adjusted(0, 40, 0, 40), Qt::AlignCenter, tr("Presiona P para continuar"));
     }
 
     // Pre-launch hint
     if (!m_ballLaunched && !m_gameOver) {
         painter.setPen(mid);
         QFont font = painter.font();
-        font.setPixelSize(14);
+        font.setPixelSize(12);
         painter.setFont(font);
-        painter.drawText(QRectF(0, HEIGHT - 20, WIDTH, 20), Qt::AlignCenter,
-                         tr("Flechas / Mouse para mover  |  Espacio para lanzar"));
+        painter.drawText(QRectF(0, HEIGHT - 15, WIDTH, 15), Qt::AlignCenter,
+                         tr("Flechas / Ratón para mover  |  Espacio o clic para lanzar  |  P pausa"));
     }
 }
 
@@ -273,14 +340,11 @@ void BreakoutWidget::keyPressEvent(QKeyEvent *event)
         m_paddleDir = 1;
         break;
     case Qt::Key_Space:
-        if (!m_ballLaunched) {
-            m_ballLaunched = true;
-            double angle = ((std::rand() % 200) - 100) / 100.0 * M_PI / 4.0;
-            m_ballDir = QPointF(m_ballSpeed * std::sin(angle), -m_ballSpeed * std::cos(angle));
-        }
+        launchBall();
         break;
     case Qt::Key_P:
-        m_paused = !m_paused;
+    case Qt::Key_Escape:
+        togglePause();
         break;
     default:
         QWidget::keyPressEvent(event);
@@ -299,8 +363,27 @@ void BreakoutWidget::keyReleaseEvent(QKeyEvent *event)
     }
 }
 
+void BreakoutWidget::mousePressEvent(QMouseEvent *event)
+{
+    setFocus();
+    if (event->button() == Qt::LeftButton)
+        launchBall();
+}
+
+// Si la ventana pierde el foco con la pelota en juego, se pausa sola
+void BreakoutWidget::focusOutEvent(QFocusEvent *event)
+{
+    m_paddleDir = 0;
+    if (m_ballLaunched && !m_gameOver && !m_paused) {
+        m_paused = true;
+        update();
+    }
+    QWidget::focusOutEvent(event);
+}
+
 void BreakoutWidget::mouseMoveEvent(QMouseEvent *event)
 {
+    if (m_paused || m_gameOver) return;
     m_paddleX = event->position().x() - PADDLE_WIDTH / 2;
     if (m_paddleX < 0) m_paddleX = 0;
     if (m_paddleX > WIDTH - PADDLE_WIDTH) m_paddleX = WIDTH - PADDLE_WIDTH;
